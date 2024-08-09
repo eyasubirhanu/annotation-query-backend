@@ -1,6 +1,5 @@
 from typing import List
 import logging
-from dotenv import load_dotenv
 import neo4j
 from app.services.query_generator_interface import QueryGeneratorInterface
 from neo4j import GraphDatabase
@@ -8,8 +7,7 @@ import glob
 import os
 import json
 from neo4j.graph import Node, Relationship
-
-load_dotenv()
+logging.getLogger('neo4j').setLevel(logging.WARNING)
 
 class CypherQueryGenerator(QueryGeneratorInterface):
     def __init__(self, dataset_path: str):
@@ -17,8 +15,8 @@ class CypherQueryGenerator(QueryGeneratorInterface):
             os.getenv('NEO4J_URI'),
             auth=(os.getenv('NEO4J_USERNAME'), os.getenv('NEO4J_PASSWORD'))
         )
-        # self.dataset_path = dataset_path
-        # self.load_dataset(self.dataset_path)
+        self.dataset_path = dataset_path
+        self.load_dataset(self.dataset_path)
 
     def close(self):
         self.driver.close()
@@ -42,7 +40,7 @@ class CypherQueryGenerator(QueryGeneratorInterface):
                 with open(node_path, 'r') as file:
                     data = file.read()
                     for line in data.splitlines():
-                        self.run_query(line)
+                        self.run_query([line])
             except Exception as e:
                 print(f"Error loading dataset from '{node_path}': {e}")
 
@@ -53,7 +51,7 @@ class CypherQueryGenerator(QueryGeneratorInterface):
                 with open(edge_path, 'r') as file:
                     data = file.read()
                     for line in data.splitlines():
-                        self.run_query(line)
+                        self.run_query([line])
             except Exception as e:
                 print(f"Error loading dataset from '{edge_path}': {e}")
 
