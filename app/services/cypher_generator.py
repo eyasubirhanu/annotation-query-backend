@@ -72,65 +72,61 @@ class CypherQueryGenerator(QueryGeneratorInterface):
         else:
             predicates = None
 
-
         cypher_queries = []
-        all_valid = True
         # node_dict = {node['node_id']: node for node in nodes}
 
-        if all_valid:
-            match_preds = []
-            return_preds = []
-            match_no_preds = []
-            return_no_preds = []
+        match_preds = []
+        return_preds = []
+        match_no_preds = []
+        return_no_preds = []
     
-            # Track nodes that are included in relationships
-            used_nodes = set()
-            if not predicates:
-                # Case when there are no predicates
-                for node in nodes:
-                    var_name = f"n_{node['node_id']}"
+        # Track nodes that are included in relationships
+        used_nodes = set()
+        if not predicates:
+            # Case when there are no predicates
+            for node in nodes:
+                var_name = f"n_{node['node_id']}"
+                match_no_preds.append(self.match_node(node, var_name))
+                return_no_preds.append(var_name)
+            cypher_query = self.construct_clause(match_no_preds, return_no_preds)
+            cypher_queries.append(cypher_query)
+        else:
+            for i, predicate in enumerate(predicates):
+                predicate_type = predicate['type'].replace(" ", "_")
+                source_node = node_map[predicate['source']]
+                target_node = node_map[predicate['target']]
+
+                if i == 0:
+                    source_var = 's0'
+                    source_match = self.match_node(source_node, source_var)
+                    match_preds.append(source_match)
+                else:
+                    source_var = f"t{i-1}"
+
+                target_var = f"t{i}"
+                target_match = self.match_node(target_node, target_var)
+
+                match_preds.append(f"({source_var})-[r{i}:{predicate_type}]->{target_match}")
+                return_preds.append(f"r{i}")
+
+                used_nodes.add(predicate['source'])
+                used_nodes.add(predicate['target'])
+
+            for node_id, node in node_map.items():
+                if node_id not in used_nodes:
+                    var_name = f"n_{node_id}"
                     match_no_preds.append(self.match_node(node, var_name))
                     return_no_preds.append(var_name)
-                cypher_query = self.construct_clause(match_no_preds, return_no_preds)
+
+            return_preds.extend([f"s0"] + [f"t{i}" for i in range(len(predicates))])
+                
+            if (len(match_no_preds) == 0):
+                cypher_query = self.construct_clause(match_preds, return_preds)
                 cypher_queries.append(cypher_query)
             else:
-                for i, predicate in enumerate(predicates):
-                    predicate_type = predicate['type'].replace(" ", "_")
-                    source_node = node_map[predicate['source']]
-                    target_node = node_map[predicate['target']]
-
-                    if i == 0:
-                        source_var = 's0'
-                        source_match = self.match_node(source_node, source_var)
-                        match_preds.append(source_match)
-                    else:
-                        source_var = f"t{i-1}"
-
-                    target_var = f"t{i}"
-                    target_match = self.match_node(target_node, target_var)
-
-                    match_preds.append(f"({source_var})-[r{i}:{predicate_type}]->{target_match}")
-                    return_preds.append(f"r{i}")
-
-                    used_nodes.add(predicate['source'])
-                    used_nodes.add(predicate['target'])
-
-                for node_id, node in node_map.items():
-                    if node_id not in used_nodes:
-                        var_name = f"n_{node_id}"
-                        match_no_preds.append(self.match_node(node, var_name))
-                        return_no_preds.append(var_name)
-
-                return_preds.extend([f"s0"] + [f"t{i}" for i in range(len(predicates))])
-                
-                if (len(match_no_preds) == 0):
-                    cypher_query = self.construct_clause(match_preds, return_preds)
-                    cypher_queries.append(cypher_query)
-                else:
-                    cypher_query = self.construct_union_clause(match_preds, return_preds, match_no_preds, return_no_preds)
-                    cypher_queries.append(cypher_query)
-        else:
-            logging.debug("Processing stopped due to invalid request.")
+                cypher_query = self.construct_union_clause(match_preds, return_preds, match_no_preds, return_no_preds)
+                cypher_queries.append(cypher_query)
+        logging.debug("Processing stopped due to invalid request.")
         return cypher_queries
     
     def construct_clause(self, match_clause, return_clause):
