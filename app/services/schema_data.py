@@ -8,10 +8,51 @@ logging.basicConfig(level=logging.DEBUG)
 class SchemaManager:
     def __init__(self, schema_config_path: str, biocypher_config_path: str):
         self.bcy = BioCypher(schema_config_path=schema_config_path, biocypher_config_path=biocypher_config_path)
-        self.schema = self.bcy._get_ontology_mapping()._extend_schema()
+        self.schema = self.process_schema(self.bcy._get_ontology_mapping()._extend_schema())
         self.parent_nodes =self.parent_nodes()
         self.parent_edges =self.parent_edges()
+    
+    def process_schema(self, schema):
+        process_schema = {}
+        for _, value in schema.items():
+            output_label = value.get("output_label")
+            input_label = value.get("input_label")
+            source = value.get("source")
+            target = value.get("target")
 
+            if output_label:
+                if isinstance(output_label, list):
+                    for label in output_label:
+                        if source and target:
+                            label_key = f'{source}_{label}_{target}'
+                            process_schema[label_key] = {**value, "key": label_key}
+                        else:
+                            process_schema[label] = {**value, "key": label}
+                else:
+                    if source and target:
+                        label_key = f'{source}_{output_label}_{target}'
+                        process_schema[label_key] = {**value, "key": label_key}
+                    else:
+                        process_schema[output_label] = {**value, "key": output_label}
+            else:
+                if isinstance(input_label, list):
+                    for label in input_label:
+                        if source and target:
+                            label_key = f'{source}_{label}_{target}'
+                            process_schema[label_key] = {**value, "key": label_key}
+                        else:
+                            process_schema[label] = {**value, "key": label}
+                else:
+                    if source and target:
+                        label_key = f'{source}_{input_label}_{target}'
+                        process_schema[label_key] = {**value, "key": label_key}
+                    else:
+                        process_schema[input_label] = {**value, "key": input_label}
+        print("----")
+        print(process_schema)
+        print("----")
+        return process_schema
+    
     def parent_nodes(self):
         parent_nodes = set()
         for _, attributes in self.schema.items():
