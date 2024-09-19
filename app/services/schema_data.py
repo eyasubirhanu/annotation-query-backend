@@ -100,5 +100,4 @@ class SchemaManager:
                     'source': prime_service[key]['source'],
                     'target': prime_service[key]['target']
                 }
-
         return schema     
